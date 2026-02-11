@@ -1,38 +1,255 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="/slean/">
-
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="octopus_security">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
   <title>SLEAN</title>
-  <link rel="manifest" href="manifest.json">
+
+  <!-- FACE API -->
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
+
+  <script>
+    window.faceApiLoaded = false;
+    window.knownFaces = [];
+
+    async function loadFaceApiModels() {
+      if (window.faceApiLoaded) return;
+      console.log('Loading Face API models...');
+
+      try {
+        const MODEL_URL = './models';
+        console.log('Fetching models from:', MODEL_URL);
+
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        console.log('✓ tinyFaceDetector loaded');
+
+        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+        console.log('✓ faceLandmark68Net loaded');
+
+        await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+        console.log('✓ faceRecognitionNet loaded');
+
+        loadKnownFacesFromStorage();
+
+        window.faceApiLoaded = true;
+        console.log('=== Face API READY ===');
+      } catch (e) {
+        console.error('CRITICAL: Face API Model Load Failed.', e);
+        console.error('Error details:', e.message);
+      }
+    }
+
+    function saveKnownFacesToStorage() {
+      const data = window.knownFaces.map(f => ({
+        name: f.name,
+        descriptor: Array.from(f.descriptor)
+      }));
+      localStorage.setItem('knownFaces', JSON.stringify(data));
+      console.log('Saved', window.knownFaces.length, 'faces to storage');
+    }
+
+    function loadKnownFacesFromStorage() {
+      try {
+        const data = localStorage.getItem('knownFaces');
+        if (data) {
+          const parsed = JSON.parse(data);
+          window.knownFaces = parsed.map(f => ({
+            name: f.name,
+            descriptor: new Float32Array(f.descriptor)
+          }));
+          console.log('Loaded', window.knownFaces.length, 'known faces from storage');
+        }
+      } catch (e) {
+        console.error('Error loading known faces:', e);
+      }
+    }
+
+    async function enrollFace(videoId, personName) {
+      if (!window.faceApiLoaded) {
+        return { success: false, error: 'Face API not loaded' };
+      }
+
+      const video = document.getElementById(videoId);
+      if (!video || video.readyState < 2) {
+        return { success: false, error: 'Video not ready' };
+      }
+
+      try {
+        const detection = await faceapi
+          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        if (!detection) {
+          return { success: false, error: 'No face detected. Please look at the camera.' };
+        }
+
+        const existingIndex = window.knownFaces.findIndex(f => f.name.toLowerCase() === personName.toLowerCase());
+
+        if (existingIndex >= 0) {
+          window.knownFaces[existingIndex].descriptor = detection.descriptor;
+          console.log('Updated face for:', personName);
+        } else {
+          window.knownFaces.push({
+            name: personName,
+            descriptor: detection.descriptor
+          });
+          console.log('Enrolled new face:', personName);
+        }
+
+        saveKnownFacesToStorage();
+
+        return {
+          success: true,
+          message: 'Face enrolled successfully for ' + personName,
+          totalFaces: window.knownFaces.length
+        };
+      } catch (e) {
+        console.error('Enrollment error:', e);
+        return { success: false, error: e.message };
+      }
+    }
+
+    function deleteFace(personName) {
+      const index = window.knownFaces.findIndex(f => f.name.toLowerCase() === personName.toLowerCase());
+      if (index >= 0) {
+        window.knownFaces.splice(index, 1);
+        saveKnownFacesToStorage();
+        return { success: true, message: 'Deleted ' + personName };
+      }
+      return { success: false, error: 'Person not found' };
+    }
+
+    function getEnrolledFaces() {
+      return window.knownFaces.map(f => f.name);
+    }
+
+    function clearAllFaces() {
+      window.knownFaces = [];
+      localStorage.removeItem('knownFaces');
+      return { success: true, message: 'All faces cleared' };
+    }
+
+    // Find best match - threshold 0.5 (50% match required)
+    function findBestMatch(descriptor) {
+      if (window.knownFaces.length === 0) {
+        return { name: 'Unknown', distance: 1.0, confidence: 0 };
+      }
+
+      let bestMatch = { name: 'Unknown', distance: 1.0, confidence: 0 };
+
+      for (const known of window.knownFaces) {
+        const distance = faceapi.euclideanDistance(descriptor, known.descriptor);
+        if (distance < bestMatch.distance) {
+          bestMatch = {
+            name: known.name,
+            distance: distance,
+            confidence: Math.round((1 - distance) * 100)
+          };
+        }
+      }
+
+      // Threshold: distance > 0.5 means less than 50% match = Unknown
+      if (bestMatch.distance > 0.5) {
+        return {
+          name: 'Unknown',
+          distance: bestMatch.distance,
+          confidence: bestMatch.confidence,
+          closestMatch: bestMatch.name // Include who it was closest to
+        };
+      }
+
+      return bestMatch;
+    }
+
+    async function recognizeFaces(videoId) {
+      if (!window.faceApiLoaded) {
+        return [];
+      }
+
+      const video = document.getElementById(videoId);
+
+      if (!video) {
+        console.log('Video element not found:', videoId);
+        return [];
+      }
+
+      if (video.paused || video.ended || video.readyState < 2) {
+        return [];
+      }
+
+      try {
+        const detections = await faceapi
+          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+          .withFaceLandmarks()
+          .withFaceDescriptors();
+
+        if (detections.length > 0) {
+          const videoWidth = video.videoWidth;
+          const videoHeight = video.videoHeight;
+          const displayWidth = video.clientWidth;
+          const displayHeight = video.clientHeight;
+
+          const scaleX = displayWidth / videoWidth;
+          const scaleY = displayHeight / videoHeight;
+
+          const result = detections.map(d => {
+            const match = findBestMatch(d.descriptor);
+
+            const face = {
+              x: d.detection.box.x * scaleX,
+              y: d.detection.box.y * scaleY,
+              width: d.detection.box.width * scaleX,
+              height: d.detection.box.height * scaleY,
+              score: d.detection.score,
+              name: match.name,
+              distance: match.distance,
+              confidence: match.confidence,
+              isKnown: match.name !== 'Unknown',
+              closestMatch: match.closestMatch || null
+            };
+
+            return face;
+          });
+
+          return result;
+        }
+
+        return [];
+      } catch (err) {
+        console.error('Detection error:', err);
+        return [];
+      }
+    }
+
+    // Bridge functions for Flutter
+    window.recognizeFacesDart = function(videoId) {
+      return recognizeFaces(videoId);
+    };
+
+    window.enrollFaceDart = function(videoId, personName) {
+      return enrollFace(videoId, personName);
+    };
+
+    window.deleteFaceDart = function(personName) {
+      return deleteFace(personName);
+    };
+
+    window.getEnrolledFacesDart = function() {
+      return getEnrolledFaces();
+    };
+
+    window.clearAllFacesDart = function() {
+      return clearAllFaces();
+    };
+
+    window.addEventListener('load', function() {
+      console.log('Page loaded, initializing Face API...');
+      loadFaceApiModels();
+    });
+  </script>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+<script src="flutter_bootstrap.js"></script>
 </body>
 </html>
