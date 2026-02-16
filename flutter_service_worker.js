@@ -3,11 +3,11 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"flutter_bootstrap.js": "3af72ad06ff422e9c864cccab5d3fc57",
+const RESOURCES = {"flutter_bootstrap.js": "ee7d6e46db41546c9becac2308434e81",
 "version.json": "ac2103a7a6d3a8aeb989eee6e0def68d",
 "index.html": "2609400252683a5141e5786f3debb146",
 "/": "2609400252683a5141e5786f3debb146",
-"main.dart.js": "50218caf463e15f35714820d722ddff3",
+"main.dart.js": "e20e9d478d47d2480b5f22627d6f1a02",
 "flutter.js": "888483df48293866f9f41d3d9274a779",
 "models/face_landmark_68_model-weights_manifest.json": "5d083f3f330b61925025ec8d81361db7",
 "models/tiny_face_detector_model-weights_manifest.json": "862f9faaeb421d87a569666df52b84d2",
@@ -30,7 +30,7 @@ const RESOURCES = {"flutter_bootstrap.js": "3af72ad06ff422e9c864cccab5d3fc57",
 "assets/packages/youtube_player_iframe/assets/player.html": "663ba81294a9f52b1afe96815bb6ecf9",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
 "assets/AssetManifest.bin": "ae047ea70c7045adee3b481b3452292e",
-"assets/fonts/MaterialIcons-Regular.otf": "cc6ddf5de04dc101da4883f2684499a6",
+"assets/fonts/MaterialIcons-Regular.otf": "2cb59fb00f2730d4848788bc1e993caf",
 "assets/assets/alarm.mp3": "8c1a933696e9977da7e4e99003b9edc7",
 "assets/assets/drone.png": "191126a26fb5ca0d6ec5634bcdc53ae8",
 "assets/assets/scam.png": "7620cf64b3254c263f4fb807ff10f041",
