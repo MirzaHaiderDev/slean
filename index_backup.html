@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base href="/slean/">
+  <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <title>SLEAN</title>
 
@@ -130,6 +130,7 @@
       return { success: true, message: 'All faces cleared' };
     }
 
+    // Find best match - threshold 0.5 (50% match required)
     function findBestMatch(descriptor) {
       if (window.knownFaces.length === 0) {
         return { name: 'Unknown', distance: 1.0, confidence: 0 };
@@ -148,12 +149,13 @@
         }
       }
 
+      // Threshold: distance > 0.5 means less than 50% match = Unknown
       if (bestMatch.distance > 0.5) {
         return {
           name: 'Unknown',
           distance: bestMatch.distance,
           confidence: bestMatch.confidence,
-          closestMatch: bestMatch.name
+          closestMatch: bestMatch.name // Include who it was closest to
         };
       }
 
@@ -248,54 +250,6 @@
   </script>
 </head>
 <body>
-
-<!-- Loading Screen (added) -->
-<div id="loading-screen" style="
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      flex-direction:column;
-      height:100vh;
-      width:100vw;
-      background-color:#f5f5f5;
-      position:fixed;
-      top:0;
-      left:0;
-      z-index:9999;
-  ">
-  <img src="assets/logo.svg" alt="Logo" style="width:120px; height:120px; margin-bottom:20px;">
-  <p style="font-family:sans-serif; color:#4b5d38; font-size:18px;">Loading, please wait...</p>
-  <div class="spinner"></div>
-</div>
-
 <script src="flutter_bootstrap.js"></script>
-
-<script>
-  // Spinner CSS
-  const style = document.createElement('style');
-  style.innerHTML = `
-    .spinner {
-      border: 6px solid #f3f3f3;
-      border-top: 6px solid #4b5d38;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      animation: spin 1s linear infinite;
-      margin-top: 20px;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg);}
-      100% { transform: rotate(360deg);}
-    }
-  `;
-  document.head.appendChild(style);
-
-  // Hide loading screen after Flutter first frame
-  window.addEventListener('flutter-first-frame', function() {
-    const loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen) loadingScreen.style.display = 'none';
-  });
-</script>
-
 </body>
 </html>
